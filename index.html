@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>MC File Manager - Neon</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0a;
+      font-family: 'Segoe UI', sans-serif;
+      color: #00ffe1;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+      color: #00ffff;
+      text-shadow: 0 0 5px #0ff, 0 0 10px #0ff;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: row;
+      height: 90vh;
+      margin: 20px;
+      border: 2px solid #00ffe1;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 20px #00ffe1;
+    }
+
+    #fileList {
+      width: 30%;
+      overflow-y: auto;
+      background: #111;
+      padding: 10px;
+      border-right: 2px solid #00ffe1;
+    }
+
+    #editor {
+      flex-grow: 1;
+      padding: 10px;
+      background: #181818;
+    }
+
+    .file, .folder {
+      padding: 5px;
+      margin: 3px 0;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .file:hover, .folder:hover {
+      background: #222;
+    }
+
+    .folder {
+      color: #00ff99;
+    }
+
+    textarea {
+      width: 100%;
+      height: 85%;
+      background: #000;
+      color: #00ffea;
+      border: none;
+      outline: none;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #00ffe1;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #00ffe1;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 5px;
+      box-shadow: 0 0 10px #00ffe1;
+    }
+
+    button:hover {
+      background: #0ff;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    label {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #00ffe1;
+      color: #000;
+      border-radius: 5px;
+      cursor: pointer;
+      box-shadow: 0 0 10px #00ffe1;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    label:hover {
+      background: #0ff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Neonowy Menedżer Plików Minecraft</h1>
+  <center><label for="folderInput">📁 Wybierz folder serwera</label></center>
+  <input type="file" id="folderInput" webkitdirectory directory multiple />
+
+  <div id="container">
+    <div id="fileList"></div>
+    <div id="editor">
+      <h2 id="currentFile">Nie wybrano pliku</h2>
+      <textarea id="fileContent" disabled></textarea>
+      <button id="saveBtn" disabled>Zapisz zmiany</button>
+    </div>
+  </div>
+
+  <script>
+    let filesMap = {};
+    const fileListEl = document.getElementById("fileList");
+    const fileContentEl = document.getElementById("fileContent");
+    const saveBtn = document.getElementById("saveBtn");
+    const currentFileEl = document.getElementById("currentFile");
+
+    let currentFileHandle = null;
+
+    document.getElementById("folderInput").addEventListener("change", (event) => {
+      const files = event.target.files;
+      filesMap = {};
+      fileListEl.innerHTML = "";
+      currentFileHandle = null;
+      fileContentEl.value = "";
+      fileContentEl.disabled = true;
+      saveBtn.disabled = true;
+      currentFileEl.textContent = "Nie wybrano pliku";
+
+      for (const file of files) {
+        filesMap[file.webkitRelativePath] = file;
+      }
+
+      const paths = Object.keys(filesMap).sort();
+      paths.forEach(path => {
+        const el = document.createElement("div");
+        el.textContent = path;
+        el.className = path.endsWith("/") ? "folder" : "file";
+        el.addEventListener("click", () => openFile(path));
+        fileListEl.appendChild(el);
+      });
+    });
+
+    function openFile(path) {
+      const file = filesMap[path];
+      if (!file) return;
+
+      if (!file.name.match(/\.(json|yml|yaml|properties|txt|cfg)$/i)) {
+        alert("Ten typ pliku nie jest obsługiwany do edycji.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        fileContentEl.value = reader.result;
+        fileContentEl.disabled = false;
+        saveBtn.disabled = false;
+        currentFileEl.textContent = path;
+        currentFileHandle = path;
+      };
+      reader.readAsText(file);
+    }
+
+    saveBtn.addEventListener("click", async () => {
+      if (!currentFileHandle) return;
+
+      const handle = await showDirectoryPicker();
+      const pathParts = currentFileHandle.split("/");
+      let currentDir = handle;
+
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        currentDir = await currentDir.getDirectoryHandle(pathParts[i], { create: true });
+      }
+
+      const fileHandle = await currentDir.getFileHandle(pathParts[pathParts.length - 1], { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(fileContentEl.value);
+      await writable.close();
+
+      alert("Zapisano plik: " + currentFileHandle);
+    });
+  </script>
+</body>
+</html>
