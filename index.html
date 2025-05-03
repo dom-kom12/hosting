@@ -85,7 +85,7 @@
 
   <h3>Ustawienia uruchamiania serwera</h3>
   <label>RAM (np. 1G, 512M): </label>
-  <input type="text" id="ramAmount" value="5G">
+  <input type="text" id="ramAmount" value="2G">
   <label>Plik JAR: </label>
   <input type="text" id="jarFile" value="server.jar">
 
@@ -104,8 +104,17 @@
     let rootDirHandle = null;
     let currentFileHandle = null;
 
+    // Sprawdzamy stan po odświeżeniu strony
+    if (localStorage.getItem("rootDirHandle")) {
+      rootDirHandle = JSON.parse(localStorage.getItem("rootDirHandle"));
+      document.getElementById("ramAmount").value = localStorage.getItem("ramAmount") || "2G";
+      document.getElementById("jarFile").value = localStorage.getItem("jarFile") || "server.jar";
+      listFiles();
+    }
+
     async function pickServerFolder() {
       rootDirHandle = await window.showDirectoryPicker();
+      localStorage.setItem("rootDirHandle", JSON.stringify(rootDirHandle)); // Zapisujemy wybór folderu
       listFiles();
     }
 
